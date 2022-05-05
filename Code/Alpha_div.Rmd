@@ -1,0 +1,369 @@
+---
+title: "Alpha Diversity"
+author:
+- Stephanie Hereira, Centro Tlaxcala de Biología de la Conducta, UATx
+- Mauricio Hernández, Doctorado en CB, Centro Tlaxcala de Biología de la Conducta,
+  UATx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  word_document:
+    toc: yes
+    toc_depth: '2'
+  html_document:
+    theme: spacelab
+    highlight: pygments
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+---
+
+# Alpha Diversity
+
+```{r, warning=FALSE, message=FALSE}
+#loading packages
+library(qiime2R)
+library(hillR)
+library(hilldiv)
+library(tidyverse)
+library(ggpubr)
+library(phyloseq)
+library(ggpubr)
+```
+
+
+```{r, eval=FALSE, warning=FALSE, message=FALSE}
+# FUNCTIONAL DIVERSITY
+funciones <- read_tsv("../Data/EC_predicted.tsv") %>% arrange(desc(sequence)) %>% 
+  column_to_rownames(var = "sequence")
+
+tabla <- data.frame(read_q2biom("../Data/feature-table.biom")) %>% rownames_to_column(
+    var = "sequence") %>% arrange(desc(sequence)) %>% column_to_rownames( 
+  var = "sequence") %>% t() %>% as.data.frame()
+
+# Run functional diversity by Hill numbers at different q orders
+func_q0 <- hill_func(comm = tabla,traits = funciones, q = 0 )
+func_q1 <- hill_func(comm = tabla,traits = funciones, q = 1 )
+func_q2 <- hill_func(comm = tabla,traits = funciones, q = 2 )
+
+# Saved as table
+Hill_Funct <- cbind(func_q0, func_q1, func_q2)
+#write.table(func_q0, file="./hill_funct_q0.txt", sep = "\t")
+#write.table(func_q1, file="./hill_funct_q1.txt", sep = "\t")
+#write.table(func_q2, file="./hill_funct_q2.txt", sep = "\t")
+
+# PHYLOGENETIC DIVERSITY
+# Run phylogenetic diversity by Hill numbers at different q orders
+tree <- read_tree("tree_R10.nwk")
+phylo_q0 <- hill_phylo(comm = tabla, tree = tree, q = 0) %>% as.data.frame()
+phylo_q1 <- hill_phylo(comm = tabla, tree = tree, q = 1) %>% as.data.frame()
+phylo_q2 <- hill_phylo(comm = tabla, tree = tree, q = 2) %>% as.data.frame()
+
+Hill_Phylo <- cbind(phylo_q0, phylo_q1, phylo_q2)
+#write.table(Hill_Phylo, file="./hill_phylo_div_R10.txt", sep = "\t")
+
+# TAXONOMIC DIVERSITY
+otutable <- read.csv(file = "../Data/feature_table.csv", header = TRUE, row.names = 1)
+
+# Run taxonomic diversity by Hill numbers at different q orders
+q0 <- hill_taxa(comm = t(otutable), q = 0)
+q1 <- hill_taxa(comm = t(otutable), q = 1)
+q2 <- hill_taxa(comm = t(otutable), q = 2)
+
+Hill <- cbind(q0, q1, q2)
+#write.table(Hill, file="./hill_taxa_numbers.txt", sep = "\t")
+```
+
+
+```{r}
+#TAXONOMIC DIVERSITY 
+#load file previously obtained - alpha diversity
+alpha_div <- read.csv("../Data/Hill_numbers_q012.csv", 
+                      header = TRUE) %>% dplyr::select(SampleID, q0, q1, q2)
+
+metadata <- read.csv("../Data/metadata.csv", header = TRUE, check.names = F)
+
+alpha_tax <- alpha_div %>% inner_join(metadata, by = c("SampleID"="SampleID"))
+
+# Normality test
+#shapiro.test(x =alpha_tax$q0)
+#shapiro.test(x =alpha_tax$q1)
+#shapiro.test(x =alpha_tax$q2)
+
+# Paired test (Wilcoxon) (q0)
+aeneus <-  subset(alpha_tax, Species_Sceloporus== "Sceloporus aeneus",
+                  q0, drop = TRUE)
+bicanthalis <- subset(alpha_tax, Species_Sceloporus== "Sceloporus bicanthalis", 
+                      q0, drop = TRUE)
+avsb_q0 <- wilcox.test(x= aeneus, y = bicanthalis)
+t.test(aeneus, bicanthalis)
+
+# Paired test (Wilcoxon) (q1)
+aeneus1 <-  subset(alpha_tax, Species_Sceloporus== "Sceloporus aeneus", 
+                   q1, drop = TRUE)
+bicanthalis1 <- subset(alpha_tax, Species_Sceloporus== "Sceloporus bicanthalis",
+                       q1, drop = TRUE)
+AvsB_q1 <- wilcox.test(x= aeneus1, y= bicanthalis1)
+t.test(aeneus1, bicanthalis1)
+
+# Paired test (Wilcoxon) (q2)
+aeneus2 <-  subset(alpha_tax, Species_Sceloporus== "Sceloporus aeneus",
+                   q2, drop = TRUE)
+bicanthalis2 <- subset(alpha_tax, Species_Sceloporus== "Sceloporus bicanthalis", 
+                       q2, drop = TRUE)
+AvsB_q2 <- wilcox.test(x= aeneus2, y= bicanthalis2)
+t.test(aeneus2, bicanthalis2)
+```
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=3, fig.width=4}
+# Plotting (BOXPLOTS): taxonomic diversity
+# q0
+my_comparisons_q0 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+titule0 <- expression(paste("Effective number of ASVs (", italic("q"), "=0)"))
+tax_q0 <- ggboxplot(alpha_tax, x= "Species_Sceloporus", y= "q0",
+                         color = "black",  width = 0.6, lwd=0.3,
+                         order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                         fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = "Effective number of ASVs") +
+  theme_gray() + theme(text = element_text (size = 10)) +
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank()) +
+ #stat_compare_means(comparisons = my_comparisons_q0, label = "p.signif") +
+  ylab(titule0)
+print(tax_q0)
+#ggsave("tax_q0.jpeg", width=5.5, height=4.5, dpi=300)
+
+# q1
+my_comparisons_q1 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+tax_q1 <- ggboxplot(alpha_tax, x= "Species_Sceloporus", y= "q1",
+                    color = "black",  width = 0.6, lwd=0.3,
+                    order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                    fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = element_blank()) +
+  theme_gray() + theme(text = element_text (size = 10)) +
+  theme(legend.position = "none",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank()) +
+  stat_compare_means(comparisons = my_comparisons_q1, label = "p.signif")
+print(tax_q1)
+#ggsave("tax_q1.jpeg", width=5.5, height=4.5, dpi=300)
+
+# q2
+my_comparisons_q2 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+tax_q2 <- ggboxplot(alpha_tax, x= "Species_Sceloporus", y= "q2",
+                    color = "black",  width = 0.6, lwd=0.3,
+                    order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                    fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = element_blank()) +
+  theme_gray() + theme(text = element_text (size = 10)) +
+  theme(legend.position = "none",
+       axis.ticks.x = element_blank(),
+      axis.text.x = element_blank()) +
+  stat_compare_means(comparisons = my_comparisons_q2, label = "p.signif")
+print(tax_q2)
+#ggsave("tax_q2.jpeg", width=5.5, height=4.5, dpi=300)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+#PHYLOGENETIC DIVERSITY
+phylo_div <- read.csv("../Data/Hill_phylo1_q012_R10.csv", 
+                      header = TRUE) %>% dplyr::select(SampleID, q0, q1, q2)
+metadata <- read.csv("../Data/metadata.csv", header = TRUE, check.names = F)
+phylo_tax <- phylo_div %>% inner_join(metadata, by = c("SampleID"="SampleID"))
+
+# Normality test
+#shapiro.test(x =phylo_tax$q0)
+#shapiro.test(x =phylo_tax$q1)
+#shapiro.test(x =phylo_tax$q2)
+
+
+# Paired test (Wilcoxon) (q0)
+aeneus_phylo <-  subset(phylo_tax, Species_Sceloporus== "Sceloporus aeneus", 
+                        q0, drop = TRUE)
+bicanthalis_phylo <- subset(phylo_tax, Species_Sceloporus== "Sceloporus bicanthalis", 
+                            q0, drop = TRUE)
+avsb_phylo_q0 <- wilcox.test(x= aeneus_phylo, y = bicanthalis_phylo)
+t.test(aeneus_phylo, bicanthalis_phylo)
+
+# Paired test (Wilcoxon) (q1)
+aeneus_phylo1 <-  subset(phylo_tax, Species_Sceloporus== "Sceloporus aeneus",
+                         q1, drop = TRUE)
+bicanthalis_phylo1 <- subset(phylo_tax, Species_Sceloporus== "Sceloporus bicanthalis",
+                             q1, drop = TRUE)
+AvsB_phylo_q1 <- wilcox.test(x= aeneus_phylo1, y= bicanthalis_phylo1)
+t.test(aeneus_phylo1, bicanthalis_phylo1)
+
+# Paired test (Wilcoxon) (q2)
+aeneus_phylo2 <-  subset(phylo_tax, Species_Sceloporus== "Sceloporus aeneus",
+                         q2, drop = TRUE)
+bicanthalis_phylo2 <- subset(phylo_tax, Species_Sceloporus== "Sceloporus bicanthalis", 
+                             q2, drop = TRUE)
+AvsB_phylo_q2 <- wilcox.test(x= aeneus_phylo2, y= bicanthalis_phylo2)
+t.test(aeneus_phylo2, bicanthalis_phylo2)
+```
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=3, fig.width=4}
+# Plotting (BOXPLOTS): phylogenetic diversity
+# q0
+my_comparisons_q0 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+tit0 <- expression(paste("Effective total branch length (", italic("q"), "=0)"))
+phylo_q0 <- ggboxplot(phylo_tax, x= "Species_Sceloporus", y= "q0",
+                    color = "black",  width = 0.6, lwd=0.3,
+                    order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                    fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = "Effective total branch length") +
+  theme_gray() + theme(text = element_text (size = 10)) +
+  theme(axis.ticks.x = element_blank(),
+        axis.text.x = element_blank()) +
+  #stat_compare_means(comparisons = my_comparisons_q0, label = "p.signif") +
+  ylab(tit0)
+print(phylo_q0)
+#ggsave("phylo_q0.jpeg", width=5.5, height=4.5, dpi=300)
+
+# q1
+my_comparisons_q1 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+phylo_q1 <- ggboxplot(phylo_tax, x= "Species_Sceloporus", y= "q1",
+                      color = "black",  width = 0.6, lwd=0.3,
+                      order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                      fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = element_blank()) +
+  theme_gray() + theme(text = element_text (size = 10)) +
+  theme(legend.position = "none",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank()) +
+  stat_compare_means(comparisons = my_comparisons_q1, label = "p.signif")
+print(phylo_q1)
+#ggsave("phylo_q1.jpeg", width=5.5, height=4.5, dpi=300)
+
+# q2
+my_comparisons_q0 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+phylo_q2 <- ggboxplot(phylo_tax, x= "Species_Sceloporus", y= "q2",
+                      color = "black",  width = 0.6, lwd=0.3,
+                      order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                      fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = element_blank()) +
+  theme_gray() + theme(text = element_text (size = 10)) +
+  theme(legend.position = "none",
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank()) 
+ # stat_compare_means(comparisons = my_comparisons_q0, label = "p.signif")
+print(phylo_q2)
+#ggsave("phylo_q2.jpeg", width=5.5, height=4.5, dpi=300)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+# FUNCTIONAL DIVERSITY
+Funct_div <- read.csv("../Data/Hill_funct_q012.csv", header = TRUE) %>% 
+  dplyr::select(SampleID, MD_q0, MD_q1, MD_q2)
+metadata <- read.csv("../Data/metadata.csv", header = TRUE, check.names = F)
+funct_tax <- Funct_div %>% inner_join(metadata, by = c("SampleID"="SampleID"))
+
+# Normality test
+#shapiro.test(x =funct_tax$MD_q0)
+#shapiro.test(x =funct_tax$MD_q1)
+#shapiro.test(x =funct_tax$MD_q2)
+
+# Paired test (Wilcoxon) (MD_q0)
+aeneus_funct <-  subset(funct_tax, Species_Sceloporus== "Sceloporus aeneus", 
+                        MD_q0, drop = TRUE)
+bicanthalis_funct <- subset(funct_tax, Species_Sceloporus== "Sceloporus bicanthalis", 
+                            MD_q0, drop = TRUE)
+avsb_MD_q0_funct <- wilcox.test(x= aeneus_funct, y = bicanthalis_funct)
+t.test(aeneus_funct, bicanthalis_funct)
+
+# Paired test (Wilcoxon) (MD_q1)
+aeneus_funct1 <-  subset(funct_tax, Species_Sceloporus== "Sceloporus aeneus",
+                         MD_q1, drop = TRUE)
+bicanthalis_funct1 <- subset(funct_tax, Species_Sceloporus== "Sceloporus bicanthalis",
+                             MD_q1, drop = TRUE)
+avsb_MD_q1_funct1 <- wilcox.test(x= aeneus_funct1, y = bicanthalis_funct1)
+t.test(aeneus_funct1, bicanthalis_funct1)
+
+# Paired test (Wilcoxon) (MD_q1)
+aeneus_funct2 <-  subset(funct_tax, Species_Sceloporus== "Sceloporus aeneus",
+                         MD_q2, drop = TRUE)
+bicanthalis_funct2 <- subset(funct_tax, Species_Sceloporus== "Sceloporus bicanthalis", 
+                             MD_q2, drop = TRUE)
+avsb_MD_q2_funct2 <- wilcox.test(x= aeneus_funct2, y = bicanthalis_funct2)
+t.test(aeneus_funct2, bicanthalis_funct2)
+```
+
+
+```{r, warning=FALSE, message=FALSE, fig.height=3, fig.width=4}
+# Plotting (BOXPLOTS): functional diversity
+
+# MD_q0
+my_comparisons_MD_q0 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+tittle0 <- expression(paste("Mean functional diversity (", italic("q"), "=0)"))
+funct_q0 <- ggboxplot(funct_tax, x= "Species_Sceloporus", y= "MD_q0",
+                    color = "black",  width = 0.6, lwd=0.3,
+                    order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                    fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = "Mean functional diversity") +
+  theme_gray() + theme(text = element_text (size = 10),
+                       axis.text.x = element_text(face = "italic")) +
+ theme(axis.ticks.x = element_blank(),
+   axis.text.x = element_blank()) +
+  ylab(tittle0)
+ # stat_compare_means(comparisons = my_comparisons_q0, label = "p.signif")
+print(funct_q0)
+#ggsave("funct_q0.jpeg", width=5.5, height=4.5, dpi=300)
+
+# MD_q1
+my_comparisons_MD_q1 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+funct_q1 <- ggboxplot(funct_tax, x= "Species_Sceloporus", y= "MD_q1",
+                      color = "black",  width = 0.6, lwd=0.3,
+                      order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                      fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = element_blank()) +
+  theme_gray() + theme(text = element_text (size = 10),
+                       axis.text.x = element_text(face = "italic")) +
+  theme(legend.position = "none",
+       axis.ticks.x = element_blank(),
+      axis.text.x = element_blank()) +
+  stat_compare_means(comparisons = my_comparisons_MD_q1, label = "p.signif")
+print(funct_q1)
+#ggsave("funct_q1.jpeg", width=5.5, height=4.5, dpi=300)
+
+# MD_q2
+my_comparisons_MD_q2 <- list(c("Sceloporus aeneus", "Sceloporus bicanthalis"))
+funct_q2 <- ggboxplot(funct_tax, x= "Species_Sceloporus", y= "MD_q2",
+                    color = "black",  width = 0.6, lwd=0.3,
+                    order = c("Sceloporus aeneus", "Sceloporus bicanthalis"),
+                    fill = c("#DA5D11","#43B811")) +
+  labs(x = element_blank(), y = element_blank()) +
+  theme_gray() + theme(text = element_text (size = 10),
+                       axis.text.x = element_text(face = "italic")) +
+  theme(legend.position = "none",
+        axis.ticks.x = element_blank(),
+       axis.text.x = element_blank()) +
+  stat_compare_means(comparisons = my_comparisons_MD_q2, label = "p.signif")
+print(funct_q2)
+#ggsave("funct_q2.jpeg", width=5.5, height=4.5, dpi=300)
+```
+
+#### Joined plot
+```{r, warning=FALSE, message=FALSE, fig.height=10, fig.width=8}
+library(cowplot)
+Tax_Funct_Phylo_Div <- plot_grid(tax_q0, tax_q1, tax_q2, 
+                                 phylo_q0, phylo_q1, phylo_q2, 
+                                 funct_q0, funct_q1, funct_q2,
+                              nrow = 3, ncol = 3,
+                              labels = c("a", "b","c", 
+                                         "d", "e", "f", 
+                                         "g", "h", "i"),
+                              label_x = 0.3, hjust = 0.1,
+                              label_colour = "black",
+                              align = "hv",
+                              label_size = 10, rel_heights = c(1, 1, 1))
+
+print(Tax_Funct_Phylo_Div)
+#ggsave("Tax_Funct_Phylo_Div.jpeg", width=6.0, height=11.0, dpi=300)
+```
+

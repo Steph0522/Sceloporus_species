@@ -1,0 +1,236 @@
+---
+title: "Venn Diagrams, Net and Prevalence plot"
+author:
+- Stephanie Hereira, Centro Tlaxcala de Biología de la Conducta, UATx
+- Mauricio Hernández, Doctorado en CB, Centro Tlaxcala de Biología de la Conducta, UATx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  html_document:
+    theme: spacelab
+    highlight: pygments
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+---
+
+
+# Venn Diagrams and Net plot
+
+```{r, warning=FALSE, message=FALSE, eval=FALSE}
+#The current script don't show the venn diagram but save the plot in a .tiff file
+library(tidyverse)
+library(VennDiagram)
+library(ggVennDiagram)
+
+# Core microbiota, load files
+aeneus_65 <- read.csv("../Data/core_65_aeneus.csv",
+                      check.names = F) %>% rownames_to_column(
+                        var = "ids")
+bicanthalis_65 <- read.csv("../Data/core_65_bicanthalis.csv",
+                           check.names = F) %>% rownames_to_column(
+                             var = "ids") 
+grammicus_65 <- read.csv("../Data/core_65_grammicus.csv",
+                         check.names = F) %>% rownames_to_column(
+                           var = "ids")
+
+# Create Venn Diagramm
+venn.plot_60 <- venn.diagram(
+  x = list(S_aeneus = aeneus_65$OTUID,
+           S_bicanthalis = bicanthalis_65$OTUID,
+           S_grammicus = grammicus_65$OTUID),
+  category.names = c(
+    expression(bold("Sa")),
+    expression(bold("Sb")),
+    expression(bold("Sg"))),
+  filename = "venn_all_species.tiff",
+  output = TRUE,
+  height = 3000,
+  width = 3000,
+  resolution = 300,
+  compression = "lzw",
+  units = "px",
+  lwd = 6,
+  lty = "blank",
+  fill = c("green","red","orange"),
+  cex = 1.5,
+  fontface = "bold",
+  fontfamily = "sans",
+  cat.cex = 2,
+  cat.fontface = "bold",
+  cat.default.pos = "outer",
+  # cat.pos = c(115, -125, -50),
+  cat.dist = c(0.055, 0.055, 0.055),
+  cat.fontfamily = "sans")
+```
+
+# Net
+```{r, warning=FALSE, message=FALSE, fig.width=14 , fig.height=10}
+library(tidyverse)
+library(phyloseq)
+library(NetCoMi)
+library(qiime2R)
+
+#loading files and formatting
+set.seed(125)
+all <- read.delim("../Data/core55_table_L6_gg13_8_97_GBA_mod.csv", 
+                 check.names = F)
+
+all2 <- all  %>% mutate(ids=paste0("OTU", rownames(.))) %>% column_to_rownames(
+  var = "ids") %>% rename(Taxon="#OTU ID")
+
+taxa <- all2 %>% dplyr::select(Taxon) %>%  rownames_to_column(
+  var = "Feature.ID")
+parse_taxa <- taxa %>% separate(Taxon, c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus"), sep = ";") %>% column_to_rownames(var = "Feature.ID")
+
+otu <- all2 %>% dplyr::select(-Taxon)
+tax2 <- parse_taxa[match(rownames(otu), rownames(parse_taxa)),] %>% as.matrix()
+
+TAX <- tax_table(tax2)
+OTU <- otu_table(otu, taxa_are_rows = T)
+ps2 <- phyloseq(OTU, TAX)
+
+amgut_genus <- phyloseq::tax_glom(ps2, taxrank = "Genus")
+taxtab <- amgut_genus@tax_table@.Data
+
+# Find undefined taxa (in this data set, unknowns occur only up to Family)
+miss_f <- which(taxtab[, "Family"] == "f__")
+miss_g <- which(taxtab[, "Genus"] == "g__")
+
+# Number unspecified genera
+taxtab[miss_f, "Family"] <- paste0("f__", 1:length(miss_f))
+taxtab[miss_g, "Genus"] <- paste0("g__", 1:length(miss_g))
+
+# Find duplicate genera
+dupl_g <- which(duplicated(taxtab[, "Genus"]) |
+                  duplicated(taxtab[, "Genus"], fromLast = TRUE))
+
+for(i in seq_along(taxtab)){
+  # The next higher non-missing rank is assigned to unspecified genera
+  if(i %in% miss_f && i %in% miss_g){
+    taxtab[i, "Genus"] <- paste0(taxtab[i, "Genus"], 
+                                 "(", taxtab[i, "Order"], ")")
+  } else if(i %in% miss_g){
+    taxtab[i, "Genus"] <- paste0(taxtab[i, "Genus"],
+                                 "(", taxtab[i, "Family"], ")")
+  }
+  
+  # Family names are added to duplicate genera
+  if(i %in% dupl_g){
+    taxtab[i, "Genus"] <- paste0(taxtab[i, "Genus"], "(", taxtab[i, "Family"], ")")
+  }
+}
+
+amgut_genus@tax_table@.Data <- taxtab
+rownames(amgut_genus@otu_table@.Data) <- taxtab[, "Genus"]
+
+# Get phyla names from the taxonomic table created before
+
+phyla <- as.factor(gsub("p__", "", taxtab[, "Phylum"]))
+names(phyla) <- taxtab[, "Genus"]
+
+# Network construction and analysis
+
+net_single3 <- netConstruct(amgut_genus, 
+                            zeroMethod = "pseudo",
+                            sparsMethod = "threshold",
+                            thresh=0.3,
+                            zeroPar = list(pseudocount = 0.5),
+                            normMethod = "clr",
+                            measure = "sparcc",
+                            verbose = 0)
+
+
+props_single3 <- netAnalyze(net_single3, clustMethod = "cluster_fast_greedy")
+
+# Compute layout
+graph3 <- igraph::graph_from_adjacency_matrix(net_single3$adjaMat1, 
+                                              weighted = TRUE)
+lay_fr <- igraph::layout_with_fr(graph3)
+
+# Note that row names of the layout matrix must match the node names
+rownames(lay_fr) <- rownames(net_single3$adjaMat1)
+library(viridis)
+col2 <- viridis_pal(option = "H", begin = 0.1, end = 0.9)((12))
+
+# Define phylum colors
+phylcol <- c("cyan", "blue3", "red", "lawngreen", "yellow", "deeppink","green")
+
+#png(filename= "phyla_red_generos_sa_sb.png", width=1648, height=832)
+
+plot(props_single3,
+     layout = "spring",
+     repulsion = 0.9,
+     labelLength = 15,
+    # shortenLabels = "none",
+     charToRm = "g__",
+     labelScale = FALSE,
+     rmSingles = TRUE,
+     nodeSize = "clr",
+     nodeSizeSpread = 4,
+     nodeColor = "feature", 
+     featVecCol = phyla, 
+     colorVec =  phylcol,
+     posCol = "darkturquoise", 
+     negCol = "orange",
+     edgeTranspLow = 0,
+     edgeTranspHigh = 40,
+     cexNodes = 2,
+     cexLabels = 1.2,
+     cexHubLabels = 1.7,
+     #title1 = "Network on genus level showing phyla with sparcc", 
+     showTitle = FALSE,
+     cexTitle = 2.3)
+
+# Colors used in the legend should be equally transparent as in the plot
+phylcol_transp <- NetCoMi:::colToTransp(phylcol, 60)
+
+legend(-1.1, 1.2, cex = 0.8, pt.cex = 2, title = "", 
+       legend=levels(phyla), col = phylcol_transp, bty = "n", pch = 16) 
+
+legend(0.5, 1.15, cex = 0.8, title = "estimated correlation:",
+       legend = c("+","-"), lty = 1, lwd = 3, col = c("darkturquoise","orange"), 
+       bty = "n", horiz = TRUE)
+#dev.off()
+
+#statistics of net
+set.seed(122)
+summary(props_single3)
+
+```
+
+
+#  Prevalence
+
+```{r, fig.width=10, warning=FALSE, message=FALSE}
+preval <- readxl::read_excel("../Data/prevalence.xlsx", sheet = "Data_graphic2022") %>% 
+  rename("S. aeneus"=PrevalenciaSA, "S. bicanthalis"=PrevalenciaSB, "Sceloporusspp."=PrevalenciaTot)
+
+library(tidyverse)
+preval_dat<-preval %>% pivot_longer(
+  ., cols = c(`S. aeneus`, `S. bicanthalis`, `Sceloporusspp.`), 
+  names_to = "prev", values_to = "prev_val")%>% pivot_longer(
+    ., cols = c(Rel.ab.SA, Rel.ab.SB, Rel.ab.Tot), 
+ names_to = "relab", values_to = "relab_val") %>% drop_na()
+
+colors <- c("darkorange1", "chartreuse4", "black")
+
+#$preval_dat %>% ggplot(aes(prev_val, relab_val, color= prev_val))+geom_point()
+preval %>% ggplot() + geom_point(aes(`S. aeneus`, Rel.ab.SA,color="S. aeneus"), size=3) +
+  geom_point(aes(`S. bicanthalis`, Rel.ab.SB, color="S. bicanthalis"), size=3) +
+  geom_point(aes(`Sceloporusspp.`, Rel.ab.Tot,color="Sceloporus spp."), size=3) +
+  scale_color_manual(values = colors) +
+  geom_text(aes(`S. aeneus`, Rel.ab.SA,label=labels, fontface="italic")) +
+  geom_text(aes(`S. bicanthalis`, Rel.ab.SB,label=labels,fontface="italic")) +
+  ylab("Average relative abundance") +
+  xlab("Prevalence (%)")+ theme(
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12, face = "italic"),
+    legend.position = c(0.1,0.9),
+    axis.text = element_text(size = 12, colour = "black"))
+
+```
+
+

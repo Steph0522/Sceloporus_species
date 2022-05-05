@@ -1,0 +1,25 @@
+---
+title: "Is Habitat More Important than Phylogenetic Relatedness in Determining Gut Bacterial Composition in Sister Lizard Species?"
+author:
+- Mauricio Hernández, Doctorado en CB, Centro Tlaxcala de Biología de la Conducta, UATx
+- Stephanie Hereira-Pacheco, Centro Tlaxcala de Biología de la Conducta, UATx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  html_document:
+    theme: spacelab
+    highlight: pygments
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+---
+```{r child = './Alpha_div.Rmd'}
+```
+
+```{r child = './BetaDiv.Rmd'}
+```
+
+```{r child = './venn_net.Rmd'}
+```

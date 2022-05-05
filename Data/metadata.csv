@@ -1,0 +1,19 @@
+SampleID,Ind,Overhang,BarcodeSequence,LinkerPrimerSequence,Species_Sceloporus,Sex,Weight,SVL,TL,SampleType,Season,Tb ,Ta ,Ts ,Location,Elevation,Day,Month,Year
+Sa.M.D.27,27,Overhang_1,TAAGGCGATAGATCGC,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Male,5.5,56,109,Faeces,Dry,NA,NA,NA,Low_zone,2712,4,Feb,2020
+Sa.F.D.28,28,Overhang_2,TAAGGCGACTCTCTAT,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Female,1.4,36,61,Faeces,Dry,NA,19,20.9,Low_zone,2712,4,Feb,2020
+Sa.M.D.29,29,Overhang_3,TAAGGCGATATCCTCT,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Male,2.2,39,77,Faeces,Dry,NA,19,20.9,Low_zone,2712,4,Feb,2020
+Sa.F.D.30,30,Overhang_4,TAAGGCGAAGAGTAGA,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Female,2.4,44,78,Faeces,Dry,NA,17.5,16.9,Low_zone,2712,4,Feb,2020
+Sa.M.D.31,31,Overhang_5,TAAGGCGAGTAAGGAG,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Male,2.4,44,74,Faeces,Dry,NA,19,19.7,Low_zone,2712,4,Feb,2020
+Sa.M.D.32,32,Overhang_6,TAAGGCGAACTGCATA,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Male,3.1,46,100,Faeces,Dry,NA,18.5,22.1,Low_zone,2712,4,Feb,2020
+Sa.F.D.33,33,Overhang_7,TAAGGCGAAAGGAGTA,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Female,2.3,41,86,Faeces,Dry,NA,21.9,19,Low_zone,2712,4,Feb,2020
+Sa.F.D.35,35,Overhang_9,CGTACTAGTAGATCGC,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Female,2.5,42,92,Faeces,Dry,NA,20.5,20.8,Low_zone,2712,4,Feb,2020
+Sa.M.D.36,36,Overhang_10,CGTACTAGCTCTCTAT,CCTACGGGNGGCWGCAG,Sceloporus aeneus,Male,3,46,98,Faeces,Dry,NA,18.5,22.1,Low_zone,2712,4,Feb,2020
+Sb.F.D.37,37,Overhang_11,CGTACTAGTATCCTCT,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Female,1.9,43,82,Faeces,Dry,25.6,14.6,13.4,High_zone,4029,7,Feb,2020
+Sb.M.D.38,38,Overhang_12,CGTACTAGAGAGTAGA,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Male,1.8,37,91,Faeces,Dry,30.6,15,23.8,High_zone,4029,7,Feb,2020
+Sb.F.D.39,39,Overhang_13,CGTACTAGGTAAGGAG,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Female,2,38,87,Faeces,Dry,31.1,15,23.8,High_zone,4029,7,Feb,2020
+Sb.M.D.41,41,Overhang_15,CGTACTAGAAGGAGTA,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Male,2.1,40,92,Faeces,Dry,31.8,19.4,24.6,High_zone,4029,7,Feb,2020
+Sb.M.D.42,42,Overhang_16,CGTACTAGCTAAGCCT,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Male,2.6,43,88,Faeces,Dry,27.3,17.8,26.4,High_zone,4029,7,Feb,2020
+Sb.M.D.43,43,Overhang_17,AGGCAGAATAGATCGC,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Male,1.5,35,66,Faeces,Dry,NA,NA,NA,High_zone,4029,7,Feb,2020
+Sb.F.D.44,44,Overhang_18,AGGCAGAACTCTCTAT,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Female,1.2,33,74,Faeces,Dry,NA,NA,NA,High_zone,4029,7,Feb,2020
+Sb.F.D.45,45,Overhang_19,AGGCAGAATATCCTCT,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Female,1.8,39,84,Faeces,Dry,NA,NA,NA,High_zone,4029,7,Feb,2020
+Sb.M.D.46,46,Overhang_20,AGGCAGAAAGAGTAGA,CCTACGGGNGGCWGCAG,Sceloporus bicanthalis,Male,2.4,32,98,Faeces,Dry,NA,NA,NA,High_zone,4029,7,Feb,2020

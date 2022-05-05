@@ -1,0 +1,581 @@
+---
+title: "Beta diversity, barplots and aldex"
+author:
+- Stephanie Hereira, Centro Tlaxcala de Biología de la Conducta, UATx
+- Mauricio Hernández, Doctorado en CB, Centro Tlaxcala de Biología de la Conducta, UATx
+date: "`r format(Sys.time(), '%d - %m - %Y')`"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  html_document:
+    theme: spacelab
+    highlight: pygments
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+---
+
+
+# Beta diversity - PCA and perMANOVA
+
+
+
+```{r, message=FALSE, warning=FALSE}
+## Loading packages
+library(tidyverse)
+library(compositions)
+library(zCompositions)
+library(ALDEx2)
+library(CoDaSeq)
+library(vegan)
+library(RVAideMemoire)
+library(ggpubr)
+library(ALDEx2)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(circlize)
+library(ggplotify)
+
+# Loading files
+metadata <- read.csv("../Data/metadata_aeneus_bica_grammicus.csv", row.names = 1,
+                     header = TRUE, check.names = F)
+
+otutable <- read.csv("../Data/feature_table.csv", row.names = 1, check.names = F)
+```
+
+
+```{r, eval=FALSE}
+# Transforming data "clr transformation/compositional data"
+aldez.clr.transform <- aldex.clr(otutable, mc.samples = 999, denom = "all",
+                                 verbose = FALSE, useMC = FALSE)
+aldex.clr.transform.data <- t(getMonteCarloSample(aldez.clr.transform, 1))
+
+#write.table(aldex.clr.transform.data, file="./aldex_table.txt", sep = "\t")
+```
+
+### All species
+
+```{r}
+# PCA
+metadata <- read.csv("../Data/metadata_aeneus_bica_grammicus.csv",
+                     row.names = 1, check.names = F) %>% 
+  rownames_to_column(var = "SampleID")
+otu_table1 <- read.csv("../Data/aldex_table.csv", header = TRUE, 
+                       row.names = 1, check.names = F)
+
+# Run a PCA with codaSeq.clr
+pcx.abund.aldex <- prcomp(otu_table1)
+
+# Labels to PCA axis
+pc1 <- paste("PC1", round(sum(pcx.abund.aldex$sdev[1] ^2) / 
+                            mvar(otu_table1) * 100, 1), "%")
+
+pc2 <- paste("PC2", round(sum(pcx.abund.aldex$sdev[2] ^2) /
+                            mvar(otu_table1) * 100, 1), "%")
+
+# Create the base plot with only the arrows
+PCA_SaSbSg_aldex.clr <- ggplot() +
+  theme_bw() +
+  xlab(pc1) +
+  ylab(pc2) +
+  theme(axis.text = element_text(colour = "black", size = 14), 
+        axis.title = element_text(colour = "black", size = 14),
+        legend.text = element_text(size = 14),
+        legend.title = element_blank(),
+        legend.position = "right") +
+  theme_gray() + geom_point( #individuals
+    data = data.frame(pcx.abund.aldex$x) %>% rownames_to_column(
+      var = "SampleID") %>%
+      left_join(metadata, by = "SampleID"),
+    aes(x=PC1, y=PC2, color = Species_Sceloporus),
+    size= 3.5) +
+  geom_vline(xintercept = 0, linetype = 2) +   #lines-cross
+  geom_hline(yintercept = 0, linetype = 2) +
+  scale_color_manual(values = c("#DA5D11","#43B811","#F5A91D")) +
+  theme(legend.text = element_text(face = "italic"))# +
+
+print(PCA_SaSbSg_aldex.clr)
+ggsave("PCA_SaSbSg_aldex.clr.jpeg", width=5.5, height=5.5, dpi=300)
+```
+
+
+```{r}
+# perMANOVA all Species
+
+Permanova1 <- adonis2(otu_table1 ~ Species_Sceloporus, data = metadata, 
+                     method = "euclidean", permutations = 999)
+print(Permanova1)
+```
+
+\newpage
+
+### Aeneus vs Grammicus
+
+```{r}
+# SCELOPORUS AENEUS VERSUS SCELOPORUS GRAMMICUS
+otu_table2 <- read.csv(file = "../Data/aldex_Sasg.csv",
+                       header = TRUE, row.names = 1, check.names = F)
+metadata2 <- read.csv("../Data/metadata_AG.csv", row.names = 1, 
+                      check.names = F) %>% rownames_to_column(var = "SampleID")
+
+# Run a PCA with codaSeq.clr
+pcx.abund.aldex <- prcomp(otu_table2)
+
+# Labels to PCA axis
+pc1 <- paste("PC1", round(sum(pcx.abund.aldex$sdev[1] ^2) /
+                            mvar(otu_table2) * 100, 1), "%")
+
+pc2 <- paste("PC2", round(sum(pcx.abund.aldex$sdev[2] ^2) /
+                            mvar(otu_table2) * 100, 1), "%")
+
+# Create the base plot with only the arrows
+PCA_SaSg_aldex.clr <- ggplot() +
+  theme_bw() +
+  xlab(pc1) +
+  ylab(pc2) +
+  theme(axis.text = element_text(colour = "black", size = 14), #setting theme
+        axis.title = element_text(colour = "black", size = 14),
+        legend.text = element_text(size = 14),
+        legend.title = element_blank(),
+        legend.position = "right") +
+  theme_gray() +
+  geom_point( #individuals
+    data = data.frame(pcx.abund.aldex$x) %>% rownames_to_column(
+      var = "SampleID") %>%
+      left_join(metadata, by = "SampleID"),
+    aes(x=PC1, y=PC2, color = Species_Sceloporus),
+    size= 3.5) +
+  geom_vline(xintercept = 0, linetype = 2) + 
+  geom_hline(yintercept = 0, linetype = 2) +
+  scale_color_manual(values = c("#DA5D11","#F5A91D")) +
+  theme(legend.text = element_text(face = "italic")) # +
+
+
+print(PCA_SaSg_aldex.clr)
+#ggsave("PCA_SaSg_aldex.clr.jpeg", width=5.5, height=5.5, dpi=300)
+
+# perMANOVA 
+Permanova2 <- adonis2(otu_table2 ~ Species_Sceloporus, data = metadata2, 
+                     method = "euclidean", permutations = 999)
+print(Permanova2)
+
+```
+
+\newpage
+
+### Bicanthalis vs Grammicus
+
+```{r}
+# SCELOPORUS BICANTHALIS VERSUS SCELOPORUS GRAMMICUS
+otu_table3 <- read.csv(file = "../Data/aldex_SbSg.csv",  
+                       header = TRUE, row.names = 1, check.names = F)
+metadata3 <- read.csv("../Data/metadata_BG.csv", row.names = 1,
+                      check.names = F) %>% rownames_to_column(var = "SampleID")
+
+# Run a PCA with codaSeq.clr
+pcx.abund.aldex <- prcomp(otu_table3)
+
+# Labels to PCA axis
+pc1 <- paste("PC1", round(sum(pcx.abund.aldex$sdev[1] ^2) /
+                            mvar(otu_table3) * 100, 1), "%")
+
+pc2 <- paste("PC2", round(sum(pcx.abund.aldex$sdev[2] ^2) / 
+                            mvar(otu_table3) * 100, 1), "%")
+
+# Create the base plot with only the arrows
+PCA_SbSg_aldex.clr <- ggplot() +
+  theme_bw() +
+  xlab(pc1) +
+  ylab(pc2) +
+  theme(axis.title = element_text(colour = "black", size = 14),
+        legend.text = element_text(size = 14),
+        legend.title = element_blank(),
+        legend.position = "right") +
+  theme_gray() +
+  geom_point( #individuals
+    data = data.frame(pcx.abund.aldex$x) %>% rownames_to_column(
+      var = "SampleID") %>%
+      left_join(metadata, by = "SampleID"),
+    aes(x=PC1, y=PC2, color = Species_Sceloporus),
+    size= 3.5) +
+  geom_vline(xintercept = 0, linetype = 2) +   #lines-cross
+  geom_hline(yintercept = 0, linetype = 2) +
+  scale_color_manual(values = c("#43B811", "#F5A91D")) +
+  theme(legend.text = element_text(face = "italic"))# +
+print(PCA_SbSg_aldex.clr)
+
+# perMANOVA 
+Permanova3 <- adonis2(otu_table3 ~ Species_Sceloporus, data = metadata3, 
+                      method = "euclidean", permutations = 999)
+print(Permanova3)
+```
+\newpage
+
+### Aeneus vs Bicanthalis (non-core microbiota)
+
+```{r}
+metadata <- read.csv("../Data/metadata.csv", row.names = 1, 
+                     check.names = F) %>% rownames_to_column(var = "SampleID")
+PCA <- read.csv("../Data/PCA_Sa_Sb.csv", row.names = 1, check.names = F)
+ASVs <- read.csv("../Data/ASVs_PCA123_SaSb.csv", row.names = 1, check.names = F)
+taxonomy <- read.csv("../Data/taxonomy.csv", check.names = F) %>% unite(
+  taxa, Kingdom:Species, remove = F, sep = ";")
+
+PCA_SaSb_Marzo <- ggplot() +
+  theme_bw() +
+  xlab("PC1 52.49%") +
+  ylab("PC2 40.64%") +
+  theme(axis.text = element_text(colour = "black", size = 14),
+        axis.title = element_text(colour = "black", size = 14),
+        legend.text = element_text(size = 14),
+        legend.position = "right") +
+  theme_gray() +
+  geom_point( #individuals
+    data = data.frame(PCA) %>% rownames_to_column(var = "SampleID") %>%
+      left_join(metadata, by = "SampleID") %>% dplyr::select(-Tb:-Ts),
+    aes(x=PC1, y=PC2, color =Species_Sceloporus),
+    size = 3.5) +
+  geom_vline(xintercept = 0, linetype = 2) +   #lines-cross
+  geom_hline(yintercept = 0, linetype = 2) +
+scale_color_manual(values = c("#DA5D11","#43B811")) +
+  theme(legend.text = element_text(face = "italic"))
+print(PCA_SaSb_Marzo)
+
+# PERMANOVA SISTER SPECIES (AENEUS VERSUS BICANTHALIS) "Non-core microbiota"
+
+Permanova <- adonis2(PCA ~ Species_Sceloporus, data = metadata, 
+                     method = "euclidean", permutations = 999)
+
+print(Permanova)
+
+# PERMANOVA SISTER SPECIES (AENEUS VERSUS BICANTHALIS) "Core-microbiota"
+otu_table4 <- read.csv(file = "../Data/aldex_SaSb.csv",  header = TRUE, row.names = 1,
+                       check.names = F)
+metadata4 <- read.csv("../Data/metadata_SaSb.csv", row.names = 1, check.names = F) %>% 
+  rownames_to_column(var = "SampleID")
+
+# perMANOVA 
+Permanova4 <- adonis2(otu_table4 ~ Species_Sceloporus, data = metadata4, 
+                      method = "euclidean", permutations = 999)
+print(Permanova4)
+```
+
+\newpage
+
+### Grammicus populations at low and high altitude
+
+```{r, warning=FALSE, message=FALSE}
+# PERMANOVA ALLOPATRIC POPULATION OF SCELOPORUS GRAMMICUS (LOW AND HIGH ZONE)
+otutable_Sg <- read.csv("../Data/Sg_feat_table.csv", row.names = 1, 
+                        check.names = F)
+aldez.clr.transform1 <- aldex.clr(otutable_Sg, mc.samples = 999, denom = "all",
+                                 verbose = FALSE, useMC = FALSE)
+aldex.clr.transform.data <- t(getMonteCarloSample(aldez.clr.transform1, 1))
+#write.table(aldex.clr.transform.data, file="./aldex_core_Sg.txt", sep = "\t")
+
+otu_table5 <- read.csv(file = "../Data/aldex_core_Sg.csv",  header = TRUE, 
+                       row.names = 1, check.names = F)
+metadata5 <- read.csv("../Data/metadata_Sg.csv", row.names = 1, 
+                      check.names = F) %>% rownames_to_column(var = "SampleID")
+
+# perMANOVA 
+Permanova5 <- adonis2(otu_table5 ~ Species_Sceloporus, data = metadata5, 
+                      method = "euclidean", permutations = 999)
+print(Permanova5)
+```
+
+
+# Barplot Phylum
+
+```{r, warning=FALSE, message=FALSE}
+#load packages and files
+library(phyloseq)
+library(vegan)
+library(edgeR)
+library(RColorBrewer)
+library(scales)
+library(viridis)
+library(tidyverse)
+
+metadata <- read.csv(file = "../Data/metadata.csv", header = TRUE, row.names = 1)
+otu_table <- read.csv("../Data/feature_table2.csv", header = TRUE, row.names = 1)
+taxonomy <- read.csv("../Data/taxonomy.csv", header = TRUE, row.names = 1)
+#phylo<- read.tree(file = "tree.nwk")
+
+# Crear objeto de categoría phyloseq 
+SAM <- sample_data(metadata)
+TAX <- tax_table(as.matrix(taxonomy))
+OTU <- otu_table(otu_table, taxa_are_rows=TRUE)  
+#PHY<- phy_tree(phylo)
+physeq <- merge_phyloseq(OTU, TAX, SAM)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+# Convert to relative abundance
+relative  = transform_sample_counts(physeq = physeq, function(OTU) OTU / sum(OTU))
+
+# Filtering
+physeq_sub <- subset_taxa(physeq, !is.na(Kingdom) & !Kingdom %in% c("", "Unassigned"))
+physeq_sub <- subset_taxa(physeq, !is.na(Genus) & !Genus %in% c("", "Unassigned"))
+
+# Color palette
+paleta <- c(brewer.pal(12, "Paired")[1:12])
+
+## Species
+Rel_Abun_Phyl_Species <- plot_bar(physeq = relative, "Sample", fill = "Phylum") + 
+  facet_grid(~Species_Sceloporus, scales = "free", space = "free") +
+  labs(y="Relative abundance") +
+  geom_bar(stat = "identity", position="stack", res=300) +
+  scale_fill_manual(values = paleta) + 
+  theme(strip.text.x = element_text(face = "italic")) +
+  theme(text = element_text(size = 11))
+
+print(Rel_Abun_Phyl_Species)
+
+#ggsave("Rel_Abun_Phyl_Species.jpeg", width=8.0, height=4.5, dpi=300)
+```
+
+#  PCoA Bray-Curtis
+
+```{r, warning=FALSE, message=FALSE}
+Sceloporus <- ordinate(physeq_sub, "PCoA", "bray")
+
+PCoA_Scel_BrayCuris <- plot_ordination(physeq_sub, Sceloporus, type = "Phylum", 
+                                 color = "Species_Sceloporus") +
+  geom_point(size=2.5) + 
+  theme_bw() + 
+  stat_ellipse() +
+  theme_gray() +
+  scale_color_manual(values = c("#DA5D11","#43B811")) +
+  theme(legend.text = element_text(face = "italic"))
+
+print(PCoA_Scel_BrayCuris)
+#ggsave("PCoA_Scel_BrayCuris.jpeg", width=5.5, height=4.5, dpi=300)
+```
+
+\newpage
+
+# ALDEx2 - differential abundances
+
+```{r, eval=FALSE, echo=FALSE}
+tabla <- read.delim("../Data/aldex_feature_table.csv", 
+         #read.delim(gzfile("/home/yendi/Downloads/feature_table_SILVA/picrust2_AB/pathways_out/path_abun_unstrat.tsv.gz"), row.names = 1) %>% mutate_all(as.integer)
+                    check.names = F, row.names = 1) %>% t() %>% as.data.frame() %>% rownames_to_column( var = "ids") %>% arrange(ids) %>% column_to_rownames(var = "ids") %>%
+  t() %>% as.data.frame() 
+taxa <- read.delim("../Data/taxonomy.csv")
+conds <- c(rep("SA", 21), rep("SB", 24))
+
+aldex_sa_sb<-aldex(tabla, conditions = conds, mc.samples = 1000, 
+                   test = "t", effect = T, denom = "all")
+aldex_sasb<- aldex_sa_sb %>% filter(wi.eBH<0.05) %>% rownames_to_column(
+  var = "Feature.ID") %>% inner_join(taxa)
+
+#write.table(aldex_sasb, "ttest_sa_sb_genus_final_mod.csv", sep = "\t", row.names = F)
+#write.table(aldex_sasb, "ttest_sa_sb_genus_final_funct_mod.csv", sep = "\t", row.names = F)
+```
+
+#### Heatmap
+```{r, warning=FALSE, message=FALSE}
+database<- read_tsv("../Data//pathways_abun_by_levels.csv")
+
+ttest_sa_sb_genus_core <- read.delim("../Data/ttest_sa_sb_genus_final_funct_mod.csv") 
+rownames(ttest_sa_sb_genus_core) <- ttest_sa_sb_genus_core$description
+
+ttest_sa_sb_genus_core2 <- read.delim(
+"../Data/ttest_sa_sb_genus_final_mod.csv", row.names=1) 
+
+annotation_heatmap <- ttest_sa_sb_genus_core %>%arrange(diff.btw)
+
+annotation_heatmap2 <- ttest_sa_sb_genus_core2%>%  dplyr::select(
+  effect, diff.btw) %>% arrange(diff.btw)
+
+data_heatmap <- ttest_sa_sb_genus_core %>% 
+dplyr::select(rab.win.SA, rab.win.SB, diff.btw) %>% arrange(diff.btw)
+color_heatmap= colorRamp2(seq(min(data_heatmap), 
+                              max(data_heatmap), length = 5), c(
+                                "#0000FF","#5499C7", "#DAE7E4", "red", "#FF0000"))
+
+data_heatmap2 <- ttest_sa_sb_genus_core2 %>% 
+dplyr::select(rab.win.SA, rab.win.SB, diff.btw) %>% arrange(diff.btw)
+color_heatmap= colorRamp2(seq(min(data_heatmap), 
+                              max(data_heatmap), length = 5), c(
+                                "#0000FF","#5499C7", "#DAE7E4", "red", "#FF0000"))
+
+#effect annotation
+effect_col_fun =colorRamp2(c(-1.5, 0, 1.5), c("lightsalmon4", "white", "lightseagreen"))
+
+ha = HeatmapAnnotation(
+  foo = anno_block(gp = gpar(
+  fill = c("#800000" ,"#808000" )),
+  labels = c("SA", "SB"),
+  labels_gp = gpar(col = "white", fontsize = 7, fontface= "bold")))
+
+annEffect = HeatmapAnnotation("effect-size" = annotation_heatmap$effect,
+                              which = "row", col = list(
+                                "effect-size" = effect_col_fun),
+                              show_legend  =T, 
+                              gp = gpar(col = "white"))
+annEffect2 = HeatmapAnnotation("effect-size" = annotation_heatmap2$effect,
+                              which = "row", col = list(
+                                "effect-size" = effect_col_fun),
+                              show_legend  =T, 
+                              gp = gpar(col = "white"))
+
+#barplot annotation
+bardif= rowAnnotation("diff between groups" = anno_barplot(
+  annotation_heatmap$diff.btw, width = unit(4, "cm")))
+
+bardif2= rowAnnotation("diff between groups" = anno_barplot(
+  annotation_heatmap2$diff.btw, width = unit(4, "cm")))
+
+labels <- c("Oscillibacter", "Alistipes", "Parabacteroides", "Roseburia",
+          "Odoribacter","Hafnia-Obesumbacterium", "Anaerovorax",
+          "Ruminococcaceae", "Lachnospiraceae",
+          "Eubacterium", "Helicobacter", "[Eubacterium]","Sphingomonas",
+          "Eisenbergiella", "Citrobacter", "Blautia")
+
+rownames(data_heatmap2) <- labels
+
+cols_ann <- list('Superclass' = c(
+  "Phenolic Compound Degradation"="#A6CEE3",
+  "Toluene Degradation"="#00FFFF",
+  "Sugar Derivative Degradation"="#B2DF8A",
+  "Protocatechuate Degradation"="#3300CC",
+  "Proteinogenic Amino Acid Biosynthesis"="#33A02C",
+  "Aromatic Compound Degradation"="#99FFFF",
+  "Purine Nucleotide Degradation"="#99CC66",
+  "Pyrimidine Nucleotide Biosynthesis"="#006699",
+  "Fermentation of Pyruvate"="#6699CC",
+  "Terpenoid Biosynthesis"="#B3DE69",
+  "Carbohydrate Degradation"="#6699FF",
+  "Carboxylate Degradation"="#0033CC",
+  "Cell Structure Biosynthesis"="#CCEBC5",
+  "Cofactor, Carrier, and Vitamin Biosynthesis"="#66FF00",
+  "Cofactor, Prosthetic Group, Electron Carrier Degradation"="#00CCFF",
+  "Protocatechuate Degradation"="#666699",
+  "Fatty Acid and Lipid Biosynthesis"="#66CC33",
+  "Fatty Acid and Lipid Degradation"="#000666",
+  "Fermentation"="#CC0000",
+  "Glycolysis"="#993333",
+  "Inorganic Nutrient Metabolism"="#6666FF",
+  "Metabolic Regulator Biosynthesis"="#669933",
+  "Nucleic Acid Processing"="#FFFF00",
+  "Nucleoside and Nucleotide Biosynthesis"="#339933",
+  "Nucleoside and Nucleotide Degradation"="#99CCFF",
+  "Other"="#000000",
+  "Other Biosynthesis"="#069966",
+  "Pentose Phosphate Pathways"="#FF6666",
+  "Polyprenyl Biosynthesis"="#00FF33",
+  "Respiration"="#CC6666",
+  "Secondary Metabolite Biosynthesis"="#99CC00",
+  "Secondary Metabolite Degradation"="#66CCCC",
+  "TCA cycle"="#990033",
+  "Protocatechuate Degradation "="#CCFF99"))
+
+colAnn <- HeatmapAnnotation(Superclass = annotation_heatmap$level3,
+                            which = 'row',
+                            col = cols_ann,
+                            show_legend = T)
+
+ht.sa.sb <- ComplexHeatmap::Heatmap(data_heatmap[-3],  
+                                  width = ncol(data_heatmap)*unit(1, "cm"),
+                                  height = ncol(data_heatmap)*unit(2, "cm"),
+                                  cluster_column_slices = F,
+                                  cluster_columns = F,
+                                  column_km = 1,
+                                  left_annotation =  c(annEffect, colAnn),
+                                  heatmap_legend_param = list(direction = "vertical"),
+                                  right_annotation = c(bardif),
+                                  column_split = rep(c("SA", "SB")),
+                                  show_heatmap_legend = T,
+                                  cluster_rows = F,
+                                  column_title_gp = 
+                                  gpar(fill = c("#DA5D11","#43B811" ), 
+                                       col="white"),
+                                  border = F, column_gap = unit(0.5, "mm"), 
+                                  row_dend_side = "left",
+                                  row_names_side = "right",show_row_names = F,
+                                  rect_gp = gpar(col = "white", lwd = 0.2), 
+                                  row_names_gp = gpar(fontface ="italic", 
+                                                      fontsize=10),
+                                  show_column_names = F, name = "rab.Win")
+
+
+ht.sa.sb2 <- ComplexHeatmap::Heatmap(data_heatmap2[-3],  
+                                  width = ncol(data_heatmap2)*unit(1, "cm"),
+                                  height = ncol(data_heatmap2)*unit(2, "cm"),
+                                  cluster_column_slices = F,
+                                  cluster_columns = F,
+                                  column_km = 1,
+                                  left_annotation =  c(annEffect2),
+                                  heatmap_legend_param = list(direction = "vertical"),
+                                  right_annotation = c(bardif2),
+                                  column_split = rep(c("SA", "SB")),
+                                  show_heatmap_legend = T,
+                                  cluster_rows = F,
+                                  column_title_gp = 
+                                  gpar(fill = c("#DA5D11","#43B811" ), 
+                                       col="white"),
+                                  border = F, column_gap = unit(0.5, "mm"), 
+                                  row_dend_side = "left",
+                                  row_names_side = "right",show_row_names = T ,
+                                  rect_gp = gpar(col = "white", lwd = 0.2), 
+                                  row_names_gp = gpar(fontface ="italic", 
+                                                      fontsize=10),
+                                  show_column_names = F, name = "rab.Win")
+
+
+ht.sa.sb; ht.sa.sb2
+
+library(cowplot)
+
+heat <- plot_grid(grid.grabExpr(draw(ht.sa.sb)))
+heat2 <- plot_grid(grid.grabExpr(draw(ht.sa.sb2)))
+#ggsave(plot = heat, "heat_aldex_sa_sb_taxa.pdf", dpi = 300, width = 10, height = 6 )
+```
+
+#  Barplot functions and taxa
+
+```{r, fig.width=12}
+#loading files
+taxonomy <- read.csv("../Data/taxonomy.csv") %>% rename(ASV=OTUID)
+func <- readxl::read_excel("../Data/funciones.xlsx")  %>% replace(is.na(.), "Unassigned")
+funciones2 <- func %>% pivot_longer(., cols = EC:EC9,
+                                        names_to = "ECs") %>% rename(EC=value)
+predic <- read.delim("../Data/EC_TAXA.tsv")
+predic_fun<-predic %>% left_join(taxonomy, by = "ASV")
+
+#formatting
+dat<-predic_fun %>% group_by(ASV) %>% add_count() %>% dplyr::select(
+  EC, ASV, Genus) %>% inner_join(funciones2)
+
+dat2 <- dat %>% filter(EC=="EC:1.14.13.127") 
+
+dat2 <- dat %>% filter(!Genus=="" & !Genus==" g__uncultured") %>% group_by(
+  Genus, `Description-pathway`, Enriched) %>% summarise(ns=n()) %>% arrange(
+    `Description-pathway`)
+
+paleta <- c(brewer.pal(12, "Paired")[1:12], brewer.pal(12, "Set3")[1:10]) 
+
+a1 <- dat2 %>% filter(`Description-pathway`==
+                      "Aromatic Compound Degradation" & ns>10)
+a2 <- dat2 %>% filter(`Description-pathway`==
+                      "Fermentation" & ns>1) 
+a3 <- dat2 %>% filter(`Description-pathway`==
+                      "Amino Acid Biosynthesis" & ns>10) 
+
+as <- rbind(a1,a2,a3) %>% mutate(log_value=log(ns))
+
+p1 <- as %>%  ggplot(aes(x = `Description-pathway`, y = ns , fill=Genus)) + geom_bar(
+  stat = "identity", position = "fill") + theme_linedraw() +
+  scale_fill_manual(values = paleta)+theme(legend.text = element_text(face="italic"))
+
+p1          
+#ggsave(plot = p1, "plot.jpg", width = 8, height = 4)
+
+
+
+```
+
